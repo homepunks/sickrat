@@ -4,24 +4,22 @@ use std::time::Duration;
 use std::env::home_dir;
 
 use copypasta::{ClipboardContext, ClipboardProvider};
-
-type Result<T> = std::result::Result<T, ()>;
+use anyhow::{anyhow, Context, Result};
+    
 
 fn main() -> Result<()> {
-    let secret_path = match home_dir() {
-	Some(home) => home.join("Secret/very_secret_password.txt"),
-	None => {
-	    eprintln!("ERROR: Home directory not found.");
-	    std::process::exit(69);
-	}
-    };
-    
+    let secret_path = home_dir()
+	.context("[ERROR] Home directory not found!")?
+	.join("Secret/very_secret_password.txt");
+
     let content = fs::read_to_string(&secret_path)
-	.map_err(|e| eprintln!("ERROR: Couldn't read {}: {}", secret_path.display(), e))?;
+	.with_context(|| format!("[ERROR] Failed to read {}", secret_path.display()))?;
+    
     let mut ctx = ClipboardContext::new()
-	.map_err(|e| eprintln!("ERROR: Clipboard error: {e}"))?;
+	.map_err(|e| anyhow!("[ERROR] Failed to access clipboard: {}", e))?;
+    
     ctx.set_contents(content.clone())
-	.map_err(|e| eprintln!("ERROR: Clipboard copying error: {e}"))?;
+	.map_err(|e| anyhow!("[ERROR] Failed to copy to clipboard: {}", e))?;
 
     thread::sleep(Duration::from_secs(5));
     
